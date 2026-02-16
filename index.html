@@ -4,13 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>气温采集助手 Pro</title>
+    <title>气温采集助手 Pro - 春节特供版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+            /* 春节暖色调 */
         }
 
         .glass {
@@ -24,29 +25,53 @@
             animation: fadeIn 0.5s ease-out;
         }
 
+        .slide-up {
+            animation: slideUp 0.5s ease-out;
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
-                transform: translateY(10px);
             }
 
             to {
                 opacity: 1;
-                transform: translateY(0);
             }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* 滚动条隐藏但可滚动 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
     </style>
 </head>
 
-<body class="flex items-center justify-center min-h-screen p-4 text-white">
-    <div class="glass p-8 md:p-12 rounded-3xl shadow-2xl max-w-md w-full text-center fade-in relative overflow-hidden">
-        <!-- Decoration -->
-        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500"></div>
+<body class="flex flex-col items-center justify-center min-h-screen p-4 text-white pb-20">
 
-        <h1 class="text-2xl font-bold mb-2 tracking-wide text-white drop-shadow-md">实时气温采集</h1>
-        <p class="text-white/70 text-sm mb-10">自动定位 · 精准同步</p>
+    <!-- 主卡片 -->
+    <div id="main-card"
+        class="glass p-8 md:p-10 rounded-3xl shadow-2xl max-w-md w-full text-center fade-in relative overflow-hidden z-10 transition-all duration-500">
+        <h1 class="text-2xl font-bold mb-2 tracking-wide text-white drop-shadow-md">🧧 春节气温大比拼 🧨</h1>
+        <p class="text-white/80 text-sm mb-8">看看谁家最热？</p>
 
-        <div class="mb-10 relative">
+        <div class="mb-8 relative">
             <div class="flex justify-center items-baseline space-x-2">
                 <span id="temp" class="text-8xl font-thin tracking-tighter drop-shadow-lg">--</span>
                 <span class="text-4xl text-white/60 font-light">°C</span>
@@ -57,17 +82,54 @@
         </div>
 
         <p id="status"
-            class="text-sm font-medium text-white/90 mb-8 bg-black/20 py-3 px-6 rounded-full inline-block backdrop-blur-sm border border-white/10 shadow-inner max-w-full truncate">
+            class="text-sm font-medium text-white/90 mb-6 bg-black/20 py-2 px-4 rounded-full inline-block backdrop-blur-sm border border-white/10 shadow-inner max-w-full truncate">
             ⏳ 系统初始化...
         </p>
 
         <button id="mainBtn" onclick="collectData()"
-            class="w-full bg-white text-indigo-600 font-bold py-4 px-6 rounded-2xl transition-all hover:bg-opacity-90 active:scale-95 shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
-            刷新数据
+            class="w-full bg-white text-red-500 font-bold py-4 px-6 rounded-2xl transition-all hover:bg-opacity-90 active:scale-95 shadow-lg relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed">
+            刷新我的温度
         </button>
+    </div>
 
-        <div class="mt-8 text-xs text-white/40">
-            Powered by Amap & Supabase
+    <!-- 排行榜卡片 (初始隐藏) -->
+    <div id="leaderboard-card" class="hidden glass mt-6 p-6 rounded-3xl shadow-2xl max-w-md w-full fade-in z-0">
+        <h2 class="text-xl font-bold mb-4 text-center border-b border-white/20 pb-2">🔥 全国高温榜 TOP 10</h2>
+        <div id="leaderboard-list" class="space-y-3 max-h-[300px] overflow-y-auto no-scrollbar">
+            <!-- 列表项模板 -->
+            <!-- <div class="flex justify-between items-center bg-white/10 p-3 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-yellow-300 text-lg">1</span>
+                    <div class="text-left">
+                        <div class="font-bold text-sm">小明</div>
+                        <div class="text-xs text-white/60">南山区</div>
+                    </div>
+                </div>
+                <span class="text-xl font-bold">32°</span>
+            </div> -->
+            <div class="text-center text-white/50 py-4">加载中...</div>
+        </div>
+    </div>
+
+    <!-- Modal: 输入昵称 (初始隐藏) -->
+    <div id="modal-backdrop"
+        class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm fade-in">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-xs text-center shadow-2xl slide-up">
+            <h3 class="text-2xl font-bold text-red-500 mb-2">太热了！🥵</h3>
+            <p class="text-slate-500 text-sm mb-6">当前位置 <span id="modal-district"
+                    class="font-bold text-slate-700">--</span> 气温高达 <span id="modal-temp"
+                    class="font-bold text-red-500 text-lg">--</span>°C</p>
+
+            <input type="text" id="nickname-input" placeholder="输入昵称 (例如: 广州吴彦祖)"
+                class="w-full bg-slate-100 border border-slate-200 text-slate-800 text-center rounded-xl py-3 px-4 mb-4 focus:outline-none focus:ring-2 focus:ring-red-400 font-bold placeholder:font-normal">
+
+            <button onclick="joinLeaderboard()"
+                class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-red-200 transition-all active:scale-95">
+                🔥 加入比拼
+            </button>
+            <button onclick="closeModal()" class="mt-3 text-slate-400 text-xs hover:text-slate-600">
+                低调路过，不参与
+            </button>
         </div>
     </div>
 
@@ -80,6 +142,9 @@
 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // State
+        let currentData = { temp: null, lat: null, lon: null, district: null };
+
         async function collectData() {
             const btn = document.getElementById('mainBtn');
             const status = document.getElementById('status');
@@ -91,7 +156,6 @@
             tempDisplay.classList.add('opacity-50');
             status.innerText = "📍 正在定位...";
 
-            // 检查浏览器是否支持定位
             if (!navigator.geolocation) {
                 status.innerText = "❌ 浏览器不支持地理定位";
                 resetUI();
@@ -99,7 +163,6 @@
             }
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
-                // 高德要求经度在前，纬度在后，用逗号隔开
                 const lon = pos.coords.longitude.toFixed(6);
                 const lat = pos.coords.latitude.toFixed(6);
                 const locationStr = `${lon},${lat}`;
@@ -107,11 +170,11 @@
                 status.innerText = `🌍 定位成功，解析中...`;
 
                 try {
-                    // 1. 逆地理编码 (获取城市Adcode)
+                    // 1. 逆地理编码
                     const geoRes = await fetch(`https://restapi.amap.com/v3/geocode/regeo?location=${locationStr}&key=${AMAP_KEY}`);
                     const geoData = await geoRes.json();
 
-                    if (geoData.info !== "OK") throw new Error("Key验证失败或额度不足: " + (geoData.info || "未知错误"));
+                    if (geoData.info !== "OK") throw new Error(geoData.info);
 
                     const adcode = geoData.regeocode.addressComponent.adcode;
                     const district = geoData.regeocode.addressComponent.district;
@@ -127,23 +190,17 @@
                     if (weatherData.info === "OK" && weatherData.lives.length > 0) {
                         const t = weatherData.lives[0].temperature;
 
-                        // 更新UI
+                        // 更新 State
+                        currentData = { temp: t, lat: lat, lon: lon, district: locationName };
+
+                        // 更新 UI
                         tempDisplay.innerText = t;
                         tempDisplay.classList.remove('opacity-50');
                         spinner.classList.add('hidden');
+                        status.innerText = "✅ 测温完成"; // 隐私: 不提入库
 
-                        status.innerText = "☁️ 气温读取成功，上传中...";
-
-                        // 3. 写入数据库
-                        const { error } = await supabaseClient
-                            .from('weather_logs')
-                            .insert([{ temp: t, lat: lat, lon: lon }]);
-
-                        if (error) throw error;
-
-                        status.innerHTML = "✅ <span class='font-bold'>同步成功</span> | 数据已入库";
-                        status.classList.add('text-green-300');
-                        setTimeout(() => status.classList.remove('text-green-300'), 3000);
+                        // 弹出 PK Modal
+                        openModal(t, locationName);
 
                     } else {
                         throw new Error("天气查询失败");
@@ -158,23 +215,124 @@
                     tempDisplay.classList.remove('opacity-50');
                 }
             }, (err) => {
-                // 定位失败处理
-                console.warn(err);
                 let errorMsg = "定位失败";
-                switch (err.code) {
-                    case err.PERMISSION_DENIED: errorMsg = "用户拒绝了定位请求"; break;
-                    case err.POSITION_UNAVAILABLE: errorMsg = "位置信息不可用"; break;
-                    case err.TIMEOUT: errorMsg = "请求超时"; break;
-                }
+                if (err.code === err.PERMISSION_DENIED) errorMsg = "请允许定位权限";
                 status.innerText = "⚠️ " + errorMsg;
                 btn.disabled = false;
                 spinner.classList.add('hidden');
                 tempDisplay.classList.remove('opacity-50');
-            }, {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            });
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        }
+
+        // === Modal & Leaderboard Logic ===
+
+        function openModal(temp, district) {
+            document.getElementById('modal-temp').innerText = temp;
+            document.getElementById('modal-district').innerText = district;
+            document.getElementById('modal-backdrop').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-backdrop').classList.add('hidden');
+            // 即使不参加，也可以看看榜单（可选）
+            fetchAndShowLeaderboard();
+        }
+
+        async function joinLeaderboard() {
+            const nickname = document.getElementById('nickname-input').value.trim() || '神秘网友';
+            const btn = document.querySelector('#modal-backdrop button'); // Get the join button
+            const status = document.getElementById('status');
+
+            // UI Feedback inside modal
+            btn.innerText = "⏳ 上传中...";
+            btn.disabled = true;
+
+            try {
+                // 上传数据
+                const { error } = await supabaseClient
+                    .from('weather_logs')
+                    .insert([{
+                        temp: currentData.temp,
+                        lat: currentData.lat,
+                        lon: currentData.lon,
+                        nickname: nickname,
+                        district: currentData.district
+                    }]);
+
+                if (error) throw error;
+
+                // 成功后
+                closeModal();
+                status.innerText = "🎉 已加入排行榜！";
+                await fetchAndShowLeaderboard();
+
+            } catch (e) {
+                alert("加入失败: " + e.message);
+                btn.innerText = "🔥 加入比拼";
+                btn.disabled = false;
+            }
+        }
+
+        async function fetchAndShowLeaderboard() {
+            const listEl = document.getElementById('leaderboard-list');
+            const cardEl = document.getElementById('leaderboard-card');
+
+            cardEl.classList.remove('hidden');
+            listEl.innerHTML = '<div class="text-center text-white/50 py-4">刷新榜单中...</div>';
+
+            try {
+                // 获取 Top 20 (防止某些无用的测试数据，取多一点)
+                const { data, error } = await supabaseClient
+                    .from('weather_logs')
+                    .select('nickname, district, temp, created_at')
+                    .order('temp', { ascending: false }) // 按温度倒序
+                    .limit(20);
+
+                if (error) throw error;
+
+                // 渲染列表
+                let html = '';
+                data.forEach((item, index) => {
+                    // 简单的奖牌样式
+                    let rankStyle = "text-white/60 text-sm";
+                    let rowBg = "bg-white/5";
+                    if (index === 0) { rankStyle = "text-yellow-300 font-bold text-xl"; rowBg = "bg-yellow-500/20 box-border border border-yellow-300/30"; }
+                    else if (index === 1) { rankStyle = "text-gray-300 font-bold text-lg"; rowBg = "bg-gray-500/20"; }
+                    else if (index === 2) { rankStyle = "text-orange-300 font-bold text-lg"; rowBg = "bg-orange-500/20"; }
+
+                    const name = item.nickname || '匿名此';
+                    const loc = item.district || '未知地区';
+                    const temp = item.temp || '--';
+
+                    html += `
+                        <div class="flex justify-between items-center p-3 rounded-xl ${rowBg} transition hover:bg-white/10">
+                            <div class="flex items-center gap-4">
+                                <span class="w-6 text-center ${rankStyle}">${index + 1}</span>
+                                <div class="text-left">
+                                    <div class="font-bold text-sm text-white/90 truncate max-w-[100px]">${sanitize(name)}</div>
+                                    <div class="text-xs text-white/50">${sanitize(loc)}</div>
+                                </div>
+                            </div>
+                            <span class="text-lg font-bold text-white">${temp}°</span>
+                        </div>
+                    `;
+                });
+
+                if (data.length === 0) html = '<div class="text-center text-white/50">暂无数据，快来抢占第一!</div>';
+                listEl.innerHTML = html;
+
+            } catch (e) {
+                console.error(e);
+                listEl.innerHTML = '<div class="text-center text-red-300 py-4">加载失败</div>';
+            }
+        }
+
+        // XSS simple protection
+        function sanitize(str) {
+            if (!str) return '';
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
         }
 
         function resetUI() {
@@ -184,8 +342,10 @@
             document.getElementById('temp').classList.remove('opacity-50');
         }
 
-        // 页面加载完成后自动触发
         window.addEventListener('load', () => {
+            // 页面加载同样自动触发一次，但不一定强制弹窗，或者可以？
+            // 现在的逻辑是 collectData -> 成功 -> openModal
+            // 这样用户一打开就自动测温并弹窗，符合“春节热闹”的感觉
             collectData();
         });
     </script>
