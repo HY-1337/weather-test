@@ -549,24 +549,61 @@
             listEl.innerHTML = '<div class="text-center text-white/50 py-4">刷新榜单中...</div>';
 
             try {
-                // 获取 Top 20 (防止某些无用的测试数据，取多一点)
+                // 获取数据
+                // 注意: 由于数据库中 temp 字段可能是 text 类型，服务端排序会导致 "4.5" > "29.2"
+                // 修复: 获取更多数据 (Top 1000)，然后在前端进行数值排序
                 const { data, error } = await supabaseClient
                     .from('weather_logs')
                     .select('nickname, district, temp, created_at')
-                    .order('temp', { ascending: false }) // 按温度倒序
-                    .limit(20);
+                    .limit(1000); // 获取全部数据(暂定1000条上限)
 
                 if (error) throw error;
 
-                // 渲染列表
+                // 前端数值排序 (用于修复 DB 字段类型问题)
+                data.sort((a, b) => {
+                    return parseFloat(b.temp) - parseFloat(a.temp);
+                });
+
+                // 渲染列表 (显示所有数据)
                 let html = '';
                 data.forEach((item, index) => {
-                    // 简单的奖牌样式
-                    let rankStyle = "text-white/60 text-sm";
+                    const rank = index + 1;
+
+                    // 样式逻辑
+                    let rankDisplay = rank;
+                    let rankStyle = "text-white/60 text-sm font-medium";
                     let rowBg = "bg-white/5";
-                    if (index === 0) { rankStyle = "text-yellow-300 font-bold text-xl"; rowBg = "bg-yellow-500/20 box-border border border-yellow-300/30"; }
-                    else if (index === 1) { rankStyle = "text-gray-300 font-bold text-lg"; rowBg = "bg-gray-500/20"; }
-                    else if (index === 2) { rankStyle = "text-orange-300 font-bold text-lg"; rowBg = "bg-orange-500/20"; }
+                    let nameStyle = "text-white/80";
+
+                    // 前三名: 金银铜牌样式
+                    if (rank === 1) {
+                        rankDisplay = "🥇";
+                        rankStyle = "text-2xl";
+                        rowBg = "bg-gradient-to-r from-yellow-500/30 to-transparent border border-yellow-400/30";
+                        nameStyle = "text-yellow-200 font-bold";
+                    }
+                    else if (rank === 2) {
+                        rankDisplay = "🥈";
+                        rankStyle = "text-2xl";
+                        rowBg = "bg-gradient-to-r from-gray-400/30 to-transparent border border-gray-300/30";
+                        nameStyle = "text-gray-200 font-bold";
+                    }
+                    else if (rank === 3) {
+                        rankDisplay = "🥉";
+                        rankStyle = "text-2xl";
+                        rowBg = "bg-gradient-to-r from-orange-400/30 to-transparent border border-orange-300/30";
+                        nameStyle = "text-orange-200 font-bold";
+                    }
+                    // 前十名 (4-10): 稍微突出
+                    else if (rank <= 10) {
+                        rankStyle = "text-white font-bold text-lg";
+                        rowBg = "bg-white/10 border border-white/5";
+                        nameStyle = "text-white font-bold";
+                    }
+                    // 十名以后: 弱化显示
+                    else {
+                        rowBg = "bg-transparent hover:bg-white/5 border-b border-white/5";
+                    }
 
                     const name = item.nickname || '匿名此';
                     const loc = item.district || '未知地区';
@@ -574,15 +611,15 @@
                     const tempStr = isNaN(tempVal) ? '--' : tempVal.toFixed(1);
 
                     html += `
-                        <div class="flex justify-between items-center p-3 rounded-xl ${rowBg} transition hover:bg-white/10">
+                        <div class="flex justify-between items-center p-3 rounded-xl mb-2 ${rowBg} transition-all">
                             <div class="flex items-center gap-4">
-                                <span class="w-6 text-center ${rankStyle}">${index + 1}</span>
+                                <div class="w-8 text-center flex-shrink-0 ${rankStyle}">${rankDisplay}</div>
                                 <div class="text-left">
-                                    <div class="font-bold text-sm text-white/90 truncate max-w-[100px]">${sanitize(name)}</div>
-                                    <div class="text-xs text-white/50">${sanitize(loc)}</div>
+                                    <div class="text-sm truncate max-w-[120px] ${nameStyle}">${sanitize(name)}</div>
+                                    <div class="text-xs text-white/40">${sanitize(loc)}</div>
                                 </div>
                             </div>
-                            <span class="text-lg font-bold text-white">${tempStr}°</span>
+                            <span class="text-lg font-bold font-mono text-white/90">${tempStr}°</span>
                         </div>
                     `;
                 });
