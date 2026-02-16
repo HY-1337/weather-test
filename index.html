@@ -11,7 +11,8 @@
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
-            /* 春节暖色调 */
+            overflow-x: hidden;
+            /* 防止装饰物溢出 */
         }
 
         .glass {
@@ -51,7 +52,7 @@
             }
         }
 
-        /* 滚动条隐藏但可滚动 */
+        /* 滚动条隐藏 */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
@@ -60,10 +61,277 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+
+        /* === 春节装饰 === */
+
+        /* 灯笼晃动动画 */
+        @keyframes swing {
+            0% {
+                transform: rotate(-5deg);
+            }
+
+            50% {
+                transform: rotate(5deg);
+            }
+
+            100% {
+                transform: rotate(-5deg);
+            }
+        }
+
+        .lantern {
+            position: absolute;
+            top: 0;
+            width: 80px;
+            height: 100px;
+            /* 线+灯笼主体 */
+            z-index: 1;
+            transform-origin: top center;
+            animation: swing 3s infinite ease-in-out;
+            pointer-events: none;
+            /* 让鼠标事件穿透 */
+        }
+
+        .lantern-body {
+            width: 60px;
+            height: 50px;
+            background: #d80000;
+            border-radius: 30px;
+            margin: 0 auto;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(220, 0, 0, 0.4);
+            border: 2px solid #ffde00;
+        }
+
+        .lantern-body::before,
+        .lantern-body::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            height: 100%;
+            border: 1px solid #ffde00;
+            border-radius: 50%;
+            transform: translateX(-50%);
+        }
+
+        .lantern-body::before {
+            width: 30px;
+        }
+
+        .lantern-body::after {
+            width: 45px;
+        }
+
+        .lantern-line {
+            width: 2px;
+            height: 20px;
+            background: #ffde00;
+            margin: 0 auto;
+        }
+
+        .lantern-tassel {
+            width: 4px;
+            height: 30px;
+            background: #ffde00;
+            margin: 0 auto;
+            border-radius: 0 0 5px 5px;
+        }
+
+        /* 装饰对联 (仅桌面端显示) */
+        @media (min-width: 1024px) {
+            .couplet {
+                position: fixed;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 60px;
+                padding: 20px 0;
+                background: #d80000;
+                color: #ffde00;
+                font-size: 32px;
+                font-weight: bold;
+                text-align: center;
+                border-radius: 8px;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+                writing-mode: vertical-rl;
+                letter-spacing: 12px;
+                border: 2px solid #ffde00;
+                text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.1);
+                z-index: 0;
+            }
+
+            .couplet.left {
+                left: 5%;
+            }
+
+            .couplet.right {
+                right: 5%;
+            }
+        }
+
+        /* 移动端不显示对联 */
+        @media (max-width: 1023px) {
+            .couplet {
+                display: none;
+            }
+        }
+
+        /* === 爆竹动画 === */
+        @keyframes firecracker-shake {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(5deg);
+            }
+
+            75% {
+                transform: rotate(-5deg);
+            }
+        }
+
+        @keyframes spark-flash {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+
+        .firecracker-container {
+            position: fixed;
+            bottom: 20px;
+            z-index: 20;
+            cursor: pointer;
+            transition: transform 0.2s;
+            animation: firecracker-shake 3s infinite ease-in-out;
+            /* 增加整体晃动 */
+        }
+
+        .firecracker-container:hover {
+            transform: scale(1.1);
+        }
+
+        .firecracker-container.left {
+            left: 20px;
+            transform-origin: bottom left;
+        }
+
+        .firecracker-container.right {
+            right: 20px;
+            transform-origin: bottom right;
+        }
+
+        .fc-body {
+            width: 50px;
+            height: 140px;
+            background: #d80000;
+            border-radius: 8px;
+            border: 2px solid #ffde00;
+            position: relative;
+            box-shadow: 2px 5px 15px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            align-items: center;
+        }
+
+        /* 金色条纹 */
+        .fc-stripe {
+            width: 100%;
+            height: 5px;
+            background: #ffde00;
+        }
+
+        /* 福字 */
+        .fc-char {
+            color: #ffde00;
+            font-weight: bold;
+            font-size: 28px;
+            border: 2px solid #ffde00;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            line-height: 32px;
+            text-align: center;
+            background: #b30000;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 引信 */
+        .fc-fuse {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 20px;
+            background: #8B4513;
+            border-radius: 2px;
+        }
+
+        /* 火花 */
+        .fc-spark {
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 16px;
+            height: 16px;
+            background: radial-gradient(circle, #fff 10%, #ffde00 40%, #ff4500 80%);
+            border-radius: 50%;
+            animation: spark-flash 0.1s infinite alternate;
+            box-shadow: 0 0 10px #ff4500;
+        }
     </style>
 </head>
 
-<body class="flex flex-col items-center justify-center min-h-screen p-4 text-white pb-20">
+<body class="flex flex-col items-center justify-center min-h-screen p-4 text-white pb-20 relative">
+
+    <!-- 装饰: 灯笼 -->
+    <div class="lantern" style="left: 10%; animation-delay: 0s;">
+        <div class="lantern-line"></div>
+        <div class="lantern-body"></div>
+        <div class="lantern-tassel"></div>
+    </div>
+    <div class="lantern" style="right: 10%; animation-delay: 1.5s;">
+        <div class="lantern-line"></div>
+        <div class="lantern-body"></div>
+        <div class="lantern-tassel"></div>
+    </div>
+
+    <!-- 装饰: 对联 (桌面端) -->
+    <div class="couplet left">气温节节高</div>
+    <div class="couplet right">日子红火火</div>
+
+    <!-- 装饰: 爆竹 (底部) -->
+    <div class="firecracker-container left">
+        <div class="fc-spark"></div>
+        <div class="fc-fuse"></div>
+        <div class="fc-body">
+            <div class="fc-stripe"></div>
+            <div class="fc-char">福</div>
+            <div class="fc-stripe"></div>
+        </div>
+    </div>
+    <div class="firecracker-container right">
+        <div class="fc-spark"></div>
+        <div class="fc-fuse"></div>
+        <div class="fc-body">
+            <div class="fc-stripe"></div>
+            <div class="fc-char">春</div>
+            <div class="fc-stripe"></div>
+        </div>
+    </div>
 
     <!-- 主卡片 -->
     <div id="main-card"
@@ -180,9 +448,11 @@
                         let t = parseFloat(weatherData.lives[0].temperature);
 
                         // === 强行增加小数位精度 ===
-                        // 高德返回整数，我们增加 -0.4 ~ +0.4 的随机波动
-                        // 这样既保持了高德的准确基准，又有了“精确感”
-                        const jitter = (Math.random() * 0.8) - 0.4;
+                        // 之前算法 [-0.5, 0.5] 仍然可能微小偏差
+                        // 改为 [0-9] 随机整数映射，绝对保证 10% 的概率
+                        // 逻辑: 取 -0.5 到 +0.4 的偏移量
+                        const randomLastDigit = Math.floor(Math.random() * 10); // 0-9
+                        const jitter = (randomLastDigit - 5) / 10;
                         t += jitter;
 
                         // 最终保留1位小数
