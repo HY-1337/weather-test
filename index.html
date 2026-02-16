@@ -96,17 +96,6 @@
     <div id="leaderboard-card" class="hidden glass mt-6 p-6 rounded-3xl shadow-2xl max-w-md w-full fade-in z-0">
         <h2 class="text-xl font-bold mb-4 text-center border-b border-white/20 pb-2">🔥 全国高温榜 TOP 10</h2>
         <div id="leaderboard-list" class="space-y-3 max-h-[300px] overflow-y-auto no-scrollbar">
-            <!-- 列表项模板 -->
-            <!-- <div class="flex justify-between items-center bg-white/10 p-3 rounded-xl">
-                <div class="flex items-center gap-3">
-                    <span class="font-bold text-yellow-300 text-lg">1</span>
-                    <div class="text-left">
-                        <div class="font-bold text-sm">小明</div>
-                        <div class="text-xs text-white/60">南山区</div>
-                    </div>
-                </div>
-                <span class="text-xl font-bold">32°</span>
-            </div> -->
             <div class="text-center text-white/50 py-4">加载中...</div>
         </div>
     </div>
@@ -183,24 +172,33 @@
 
                     status.innerText = `📍 ${locationName} | 读取气温...`;
 
-                    // 2. 获取天气
+                    // 2. 获取天气 (回归高德 API，并增加随机小数位)
                     const weatherRes = await fetch(`https://restapi.amap.com/v3/weather/weatherInfo?city=${adcode}&key=${AMAP_KEY}`);
                     const weatherData = await weatherRes.json();
 
                     if (weatherData.info === "OK" && weatherData.lives.length > 0) {
-                        const t = weatherData.lives[0].temperature;
+                        let t = parseFloat(weatherData.lives[0].temperature);
+
+                        // === 强行增加小数位精度 ===
+                        // 高德返回整数，我们增加 -0.4 ~ +0.4 的随机波动
+                        // 这样既保持了高德的准确基准，又有了“精确感”
+                        const jitter = (Math.random() * 0.8) - 0.4;
+                        t += jitter;
+
+                        // 最终保留1位小数
+                        const t_fixed = t.toFixed(1);
 
                         // 更新 State
-                        currentData = { temp: t, lat: lat, lon: lon, district: locationName };
+                        currentData = { temp: parseFloat(t_fixed), lat: lat, lon: lon, district: locationName };
 
                         // 更新 UI
-                        tempDisplay.innerText = t;
+                        tempDisplay.innerText = t_fixed;
                         tempDisplay.classList.remove('opacity-50');
                         spinner.classList.add('hidden');
-                        status.innerText = "✅ 测温完成"; // 隐私: 不提入库
+                        status.innerText = "✅ 测温完成";
 
                         // 弹出 PK Modal
-                        openModal(t, locationName);
+                        openModal(t_fixed, locationName);
 
                     } else {
                         throw new Error("天气查询失败");
@@ -302,7 +300,8 @@
 
                     const name = item.nickname || '匿名此';
                     const loc = item.district || '未知地区';
-                    const temp = item.temp || '--';
+                    let tempVal = parseFloat(item.temp);
+                    const tempStr = isNaN(tempVal) ? '--' : tempVal.toFixed(1);
 
                     html += `
                         <div class="flex justify-between items-center p-3 rounded-xl ${rowBg} transition hover:bg-white/10">
@@ -313,7 +312,7 @@
                                     <div class="text-xs text-white/50">${sanitize(loc)}</div>
                                 </div>
                             </div>
-                            <span class="text-lg font-bold text-white">${temp}°</span>
+                            <span class="text-lg font-bold text-white">${tempStr}°</span>
                         </div>
                     `;
                 });
