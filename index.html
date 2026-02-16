@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>气温采集助手 v4.0</title>
+    <title>气温采集助手 v4.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -21,8 +21,8 @@
     </div>
 
     <script>
-        // === 核心配置 (请填入你的高德 Key) ===
-        const AMAP_KEY = '在此处填入你的高德KEY'; 
+        // === 核心配置 ===
+        const AMAP_KEY = '在此处填入你截图中的新Key'; 
         const SUPABASE_URL = 'https://rhgvuveblnwznemndvpx.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_OjgMOfIsUcOK9iYSuZ76wg_6FEvzdB8';
 
@@ -34,60 +34,54 @@
             const tempDisplay = document.getElementById('temp');
             
             btn.disabled = true;
-            status.innerText = "📍 正在调起定位...";
+            status.innerText = "📍 正在定位...";
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
-                const lat = pos.coords.latitude.toFixed(4);
-                const lon = pos.coords.longitude.toFixed(4);
-                status.innerText = `🌍 定位成功: ${lat}, ${lon}\n正在解析城市代码...`;
+                // 高德要求经度在前，纬度在后，用逗号隔开
+                const lon = pos.coords.longitude.toFixed(6);
+                const lat = pos.coords.latitude.toFixed(6);
+                const locationStr = `${lon},${lat}`;
+                
+                status.innerText = `🌍 定位成功\n正在解析城市信息...`;
 
                 try {
-                    // 1. 逆地理编码：经纬度 -> adcode
-                    const geoUrl = `https://restapi.amap.com/v3/geocode/regeo?location=${lon},${lat}&key=${AMAP_KEY}`;
-                    const geoRes = await fetch(geoUrl);
+                    // 1. 逆地理编码
+                    const geoRes = await fetch(`https://restapi.amap.com/v3/geocode/regeo?location=${locationStr}&key=${AMAP_KEY}`);
                     const geoData = await geoRes.json();
                     
-                    if (geoData.status !== "1") throw new Error("坐标解析失败: " + geoData.info);
+                    if (geoData.info !== "OK") throw new Error("Key验证失败或额度不足: " + geoData.info);
+                    
                     const adcode = geoData.regeocode.addressComponent.adcode;
-                    const cityName = geoData.regeocode.addressComponent.district || "当前位置";
+                    const district = geoData.regeocode.addressComponent.district;
 
-                    status.innerText = `📍 位置：${cityName}\n正在查询气温...`;
+                    status.innerText = `📍 当前位置：${district}\n正在读取气温...`;
 
-                    // 2. 天气查询：adcode -> 气温
-                    const weatherUrl = `https://restapi.amap.com/v3/weather/weatherInfo?city=${adcode}&key=${AMAP_KEY}`;
-                    const weatherRes = await fetch(weatherUrl);
+                    // 2. 获取天气
+                    const weatherRes = await fetch(`https://restapi.amap.com/v3/weather/weatherInfo?city=${adcode}&key=${AMAP_KEY}`);
                     const weatherData = await weatherRes.json();
 
-                    if (weatherData.status === "1" && weatherData.lives.length > 0) {
+                    if (weatherData.info === "OK" && weatherData.lives.length > 0) {
                         const t = weatherData.lives[0].temperature;
                         tempDisplay.innerText = t;
-                        status.innerText = `☁️ 气温读取成功，同步后台中...`;
+                        status.innerText = "☁️ 气温读取成功，上传中...";
 
-                        // 3. 写入 Supabase
-                        const { error: sbError } = await supabaseClient
+                        // 3. 写入数据库
+                        const { error } = await supabaseClient
                             .from('weather_logs')
-                            .insert([{ 
-                                temp: t, 
-                                lat: lat, 
-                                lon: lon 
-                            }]);
+                            .insert([{ temp: t, lat: lat, lon: lon }]);
 
-                        if (sbError) throw new Error("数据库写入失败: " + sbError.message);
-                        
-                        status.innerText = `✅ 同步成功！\n位置: ${cityName}`;
+                        if (error) throw error;
+                        status.innerText = "✅ 同步成功！数据已入库";
                     } else {
-                        throw new Error("天气数据获取失败");
+                        throw new Error("天气查询失败");
                     }
                 } catch (e) {
                     status.innerText = "🚨 错误: " + e.message;
-                    console.error(e);
-                } finally { 
-                    btn.disabled = false; 
-                }
+                } finally { btn.disabled = false; }
             }, (err) => {
-                status.innerText = "📍 定位权限被拒绝，请在手机设置中开启并刷新";
+                status.innerText = "📍 定位失败，请允许浏览器访问位置";
                 btn.disabled = false;
-            }, { timeout: 10000, enableHighAccuracy: true });
+            });
         }
     </script>
 </body>
