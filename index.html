@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>气温采集助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-10 rounded-3xl shadow-2xl max-w-sm w-full text-center border border-slate-100">
+        <h1 class="text-xl font-medium mb-8 text-slate-600">实时气温采集</h1>
+        <div class="mb-8">
+            <span id="temp" class="text-7xl font-light text-blue-600">--</span>
+            <span class="text-2xl text-slate-400">°C</span>
+        </div>
+        <p id="status" class="text-xs text-slate-400 mb-8 bg-slate-50 py-2 rounded-full">准备就绪</p>
+        <button id="mainBtn" onclick="collectData()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 px-6 rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-200">
+            获取并同步数据
+        </button>
+    </div>
+
+    <script>
+        // === 配置区 (已根据你的反馈填好) ===
+        const QWEATHER_KEY = '40f1fce96ebb4b13ac7ce937c31c1012'; 
+        const SUPABASE_URL = 'https://rhgvuveblnwznemndvpx.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_OjgMOfIsUcOK9iYSuZ76wg_6FEvzdB8';
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function collectData() {
+            const btn = document.getElementById('mainBtn');
+            const status = document.getElementById('status');
+            btn.disabled = true;
+            status.innerText = "正在请求定位...";
+
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const lat = pos.coords.latitude.toFixed(4);
+                const lon = pos.coords.longitude.toFixed(4);
+                status.innerText = "正在查询天气...";
+
+                try {
+                    // 1. 请求和风天气 API
+                    const res = await fetch(`https://devapi.qweather.com/v7/weather/now?location=${lon},${lat}&key=${QWEATHER_KEY}`);
+                    const data = await res.json();
+                    
+                    if (data.code === "200") {
+                        const t = data.now.temp;
+                        document.getElementById('temp').innerText = t;
+                        status.innerText = "正在上传后台...";
+
+                        // 2. 写入你的 Supabase weather_logs 表
+                        const { error } = await supabaseClient
+                            .from('weather_logs')
+                            .insert([{ 
+                                temp: t, 
+                                lat: lat, 
+                                lon: lon 
+                            }]);
+
+                        if (error) throw error;
+                        status.innerText = "✅ 同步成功！数据已入库";
+                    } else {
+                        status.innerText = "天气查询失败: " + data.code;
+                    }
+                } catch (e) {
+                    status.innerText = "出错啦: " + e.message;
+                } finally { btn.disabled = false; }
+            }, (err) => {
+                status.innerText = "定位失败：请确保使用 HTTPS 打开并允许定位权限";
+                btn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>
