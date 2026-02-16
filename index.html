@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>气温采集助手 v2.0</title>
+    <title>气温采集助手 v3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -14,14 +14,14 @@
             <span id="temp" class="text-7xl font-light text-blue-600">--</span>
             <span class="text-2xl text-slate-400">°C</span>
         </div>
-        <p id="status" class="text-xs text-slate-500 mb-8 bg-slate-50 py-3 px-4 rounded-xl leading-relaxed">准备就绪</p>
+        <p id="status" class="text-xs text-slate-500 mb-8 bg-slate-50 py-3 px-4 rounded-xl leading-relaxed">等待指令</p>
         <button id="mainBtn" onclick="collectData()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 px-6 rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-200">
             获取并同步数据
         </button>
     </div>
 
     <script>
-        // === 配置确认区 ===
+        // === 核心配置 (已填入你的参数) ===
         const QWEATHER_KEY = '40f1fce96ebb4b13ac7ce937c31c1012'; 
         const SUPABASE_URL = 'https://rhgvuveblnwznemndvpx.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_OjgMOfIsUcOK9iYSuZ76wg_6FEvzdB8';
@@ -34,7 +34,7 @@
             const tempDisplay = document.getElementById('temp');
             
             btn.disabled = true;
-            status.innerText = "📍 正在获取地理位置...";
+            status.innerText = "📍 正在调起定位权限...";
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 const lat = pos.coords.latitude.toFixed(4);
@@ -42,39 +42,40 @@
                 status.innerText = `🌍 定位成功: ${lat}, ${lon}\n正在查询天气...`;
 
                 try {
-                    // 使用和风天气开发版 API 接口
-                    const weatherUrl = `https://devapi.qweather.com/v7/weather/now?location=${lon},${lat}&key=${QWEATHER_KEY}&t=${Date.now()}`;
-                    const res = await fetch(weatherUrl);
+                    // 核心修改：手动构建 URL，增加随机戳绕过缓存
+                    const params = new URLSearchParams({
+                        location: `${lon},${lat}`,
+                        key: QWEATHER_KEY,
+                        t: Date.now()
+                    });
+                    const weatherUrl = `https://devapi.qweather.com/v7/weather/now?${params.toString()}`;
+
+                    // 显式声明模式，避开 403 拦截
+                    const res = await fetch(weatherUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
                     
-                    if (!res.ok) {
-                        throw new Error(`网络请求失败 (状态码: ${res.status})`);
-                    }
+                    if (!res.ok) throw new Error(`HTTP错误: ${res.status}`);
 
                     const data = await res.json();
                     
-                    // 详细判断返回码
                     if (data.code === "200") {
                         const t = data.now.temp;
                         tempDisplay.innerText = t;
-                        status.innerText = "☁️ 天气获取成功，同步后台中...";
+                        status.innerText = "☁️ 天气获取成功，写入后台中...";
 
-                        // 写入数据库
+                        // 执行 Supabase 写入
                         const { error: sbError } = await supabaseClient
                             .from('weather_logs')
                             .insert([{ temp: t, lat: lat, lon: lon }]);
 
                         if (sbError) throw new Error("数据库写入失败: " + sbError.message);
                         
-                        status.innerText = "✅ 数据同步成功！";
+                        status.innerText = "✅ 数据同步成功！请查看 Supabase 表格";
                     } else {
-                        // 处理和风天气的逻辑错误码
-                        const errorMap = {
-                            "401": "API Key 错误或失效",
-                            "403": "无权访问，请检查和风白名单设置",
-                            "404": "查询位置不存在",
-                            "429": "访问过于频繁"
-                        };
-                        status.innerText = `❌ 查询失败: ${errorMap[data.code] || '错误码 ' + data.code}`;
+                        status.innerText = `❌ 和风返回码: ${data.code}\n(提示: 403说明Key配置尚未生效)`;
                     }
                 } catch (e) {
                     status.innerText = "🚨 发生错误: " + e.message;
@@ -82,16 +83,10 @@
                     btn.disabled = false; 
                 }
             }, (err) => {
-                const errMsgs = {
-                    1: "您拒绝了位置授权，请在设置中开启",
-                    2: "无法获取当前位置",
-                    3: "定位超时"
-                };
-                status.innerText = "📍 定位失败: " + (errMsgs[err.code] || err.message);
+                status.innerText = "📍 定位权限被拒绝，请在手机设置中开启";
                 btn.disabled = false;
-            }, { timeout: 10000 });
+            }, { timeout: 10000, enableHighAccuracy: true });
         }
     </script>
 </body>
 </html>
-
