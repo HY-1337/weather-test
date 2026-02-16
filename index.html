@@ -43,7 +43,7 @@
 
                 try {
                     // 使用和风天气开发版 API 接口
-                    const weatherUrl = `https://devapi.qweather.com/v7/weather/now?location=${lon},${lat}&key=${QWEATHER_KEY}`;
+                    const weatherUrl = `https://devapi.qweather.com/v7/weather/now?location=${lon},${lat}&key=${QWEATHER_KEY}&t=${Date.now()}`;
                     const res = await fetch(weatherUrl);
                     
                     if (!res.ok) {
@@ -94,3 +94,4 @@
     </script>
 </body>
 </html>
+
