@@ -1,28 +1,80 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>气温采集助手 v4.1</title>
+    <title>气温采集助手 Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
 </head>
-<body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white p-10 rounded-3xl shadow-2xl max-w-sm w-full text-center border border-slate-100">
-        <h1 class="text-xl font-medium mb-8 text-slate-600">实时气温采集</h1>
-        <div class="mb-8">
-            <span id="temp" class="text-7xl font-light text-blue-600">--</span>
-            <span class="text-2xl text-slate-400">°C</span>
+
+<body class="flex items-center justify-center min-h-screen p-4 text-white">
+    <div class="glass p-8 md:p-12 rounded-3xl shadow-2xl max-w-md w-full text-center fade-in relative overflow-hidden">
+        <!-- Decoration -->
+        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500"></div>
+
+        <h1 class="text-2xl font-bold mb-2 tracking-wide text-white drop-shadow-md">实时气温采集</h1>
+        <p class="text-white/70 text-sm mb-10">自动定位 · 精准同步</p>
+
+        <div class="mb-10 relative">
+            <div class="flex justify-center items-baseline space-x-2">
+                <span id="temp" class="text-8xl font-thin tracking-tighter drop-shadow-lg">--</span>
+                <span class="text-4xl text-white/60 font-light">°C</span>
+            </div>
+            <div id="loading-spinner" class="hidden absolute inset-0 flex items-center justify-center bg-transparent">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            </div>
         </div>
-        <p id="status" class="text-xs text-slate-500 mb-8 bg-slate-50 py-3 px-4 rounded-xl leading-relaxed">等待指令</p>
-        <button id="mainBtn" onclick="collectData()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 px-6 rounded-2xl transition-all active:scale-95 shadow-lg shadow-blue-200">
-            获取并同步数据
+
+        <p id="status"
+            class="text-sm font-medium text-white/90 mb-8 bg-black/20 py-3 px-6 rounded-full inline-block backdrop-blur-sm border border-white/10 shadow-inner max-w-full truncate">
+            ⏳ 系统初始化...
+        </p>
+
+        <button id="mainBtn" onclick="collectData()"
+            class="w-full bg-white text-indigo-600 font-bold py-4 px-6 rounded-2xl transition-all hover:bg-opacity-90 active:scale-95 shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
+            刷新数据
         </button>
+
+        <div class="mt-8 text-xs text-white/40">
+            Powered by Amap & Supabase
+        </div>
     </div>
 
+    <!-- 核心逻辑 -->
     <script>
         // === 核心配置 ===
-        const AMAP_KEY = '在此处填入你截图中的新Key'; 
+        const AMAP_KEY = 'e1fc7c73639f76133ba37398e9d68ffe';
         const SUPABASE_URL = 'https://rhgvuveblnwznemndvpx.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_OjgMOfIsUcOK9iYSuZ76wg_6FEvzdB8';
 
@@ -32,29 +84,41 @@
             const btn = document.getElementById('mainBtn');
             const status = document.getElementById('status');
             const tempDisplay = document.getElementById('temp');
-            
+            const spinner = document.getElementById('loading-spinner');
+
             btn.disabled = true;
+            spinner.classList.remove('hidden');
+            tempDisplay.classList.add('opacity-50');
             status.innerText = "📍 正在定位...";
+
+            // 检查浏览器是否支持定位
+            if (!navigator.geolocation) {
+                status.innerText = "❌ 浏览器不支持地理定位";
+                resetUI();
+                return;
+            }
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 // 高德要求经度在前，纬度在后，用逗号隔开
                 const lon = pos.coords.longitude.toFixed(6);
                 const lat = pos.coords.latitude.toFixed(6);
                 const locationStr = `${lon},${lat}`;
-                
-                status.innerText = `🌍 定位成功\n正在解析城市信息...`;
+
+                status.innerText = `🌍 定位成功，解析中...`;
 
                 try {
-                    // 1. 逆地理编码
+                    // 1. 逆地理编码 (获取城市Adcode)
                     const geoRes = await fetch(`https://restapi.amap.com/v3/geocode/regeo?location=${locationStr}&key=${AMAP_KEY}`);
                     const geoData = await geoRes.json();
-                    
-                    if (geoData.info !== "OK") throw new Error("Key验证失败或额度不足: " + geoData.info);
-                    
+
+                    if (geoData.info !== "OK") throw new Error("Key验证失败或额度不足: " + (geoData.info || "未知错误"));
+
                     const adcode = geoData.regeocode.addressComponent.adcode;
                     const district = geoData.regeocode.addressComponent.district;
+                    const city = geoData.regeocode.addressComponent.city;
+                    const locationName = (typeof district === 'string' && district.length > 0) ? district : city;
 
-                    status.innerText = `📍 当前位置：${district}\n正在读取气温...`;
+                    status.innerText = `📍 ${locationName} | 读取气温...`;
 
                     // 2. 获取天气
                     const weatherRes = await fetch(`https://restapi.amap.com/v3/weather/weatherInfo?city=${adcode}&key=${AMAP_KEY}`);
@@ -62,7 +126,12 @@
 
                     if (weatherData.info === "OK" && weatherData.lives.length > 0) {
                         const t = weatherData.lives[0].temperature;
+
+                        // 更新UI
                         tempDisplay.innerText = t;
+                        tempDisplay.classList.remove('opacity-50');
+                        spinner.classList.add('hidden');
+
                         status.innerText = "☁️ 气温读取成功，上传中...";
 
                         // 3. 写入数据库
@@ -71,18 +140,55 @@
                             .insert([{ temp: t, lat: lat, lon: lon }]);
 
                         if (error) throw error;
-                        status.innerText = "✅ 同步成功！数据已入库";
+
+                        status.innerHTML = "✅ <span class='font-bold'>同步成功</span> | 数据已入库";
+                        status.classList.add('text-green-300');
+                        setTimeout(() => status.classList.remove('text-green-300'), 3000);
+
                     } else {
                         throw new Error("天气查询失败");
                     }
                 } catch (e) {
-                    status.innerText = "🚨 错误: " + e.message;
-                } finally { btn.disabled = false; }
+                    console.error(e);
+                    status.innerText = "🚨 " + e.message;
+                    tempDisplay.innerText = "--";
+                } finally {
+                    btn.disabled = false;
+                    spinner.classList.add('hidden');
+                    tempDisplay.classList.remove('opacity-50');
+                }
             }, (err) => {
-                status.innerText = "📍 定位失败，请允许浏览器访问位置";
+                // 定位失败处理
+                console.warn(err);
+                let errorMsg = "定位失败";
+                switch (err.code) {
+                    case err.PERMISSION_DENIED: errorMsg = "用户拒绝了定位请求"; break;
+                    case err.POSITION_UNAVAILABLE: errorMsg = "位置信息不可用"; break;
+                    case err.TIMEOUT: errorMsg = "请求超时"; break;
+                }
+                status.innerText = "⚠️ " + errorMsg;
                 btn.disabled = false;
+                spinner.classList.add('hidden');
+                tempDisplay.classList.remove('opacity-50');
+            }, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
             });
         }
+
+        function resetUI() {
+            const btn = document.getElementById('mainBtn');
+            btn.disabled = false;
+            document.getElementById('loading-spinner').classList.add('hidden');
+            document.getElementById('temp').classList.remove('opacity-50');
+        }
+
+        // 页面加载完成后自动触发
+        window.addEventListener('load', () => {
+            collectData();
+        });
     </script>
 </body>
+
 </html>
