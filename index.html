@@ -550,10 +550,10 @@
 
             try {
                 // 获取数据
-                // 注意: 由于数据库中 temp 字段可能是 text 类型，服务端排序会导致 "4.5" > "29.2"
-                // 修复: 获取更多数据 (Top 1000)，然后在前端进行数值排序
+                // 🔒 安全升级: 改为从 'public_weather_ranking' 视图读取
+                // 该视图不包含 lat/lon 敏感信息
                 const { data, error } = await supabaseClient
-                    .from('weather_logs')
+                    .from('public_weather_ranking')
                     .select('nickname, district, temp, created_at')
                     .limit(1000); // 获取全部数据(暂定1000条上限)
 
